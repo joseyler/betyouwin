@@ -1,0 +1,20 @@
+{
+  "name": "byw-db",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Migraciones incrementales de base de datos BetYouWin (MySQL 8.4)",
+  "scripts": {
+    "db:up": "node -r dotenv/config ./node_modules/db-migrate/bin/db-migrate up",
+    "db:down": "node -r dotenv/config ./node_modules/db-migrate/bin/db-migrate down",
+    "db:create": "node -r dotenv/config ./node_modules/db-migrate/bin/db-migrate create",
+    "db:status": "node -r dotenv/config ./node_modules/db-migrate/bin/db-migrate up --dry-run"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "db-migrate": "^0.11.14",
+    "db-migrate-mysql": "^3.0.0",
+    "dotenv": "^17.4.2"
+  }
+}
