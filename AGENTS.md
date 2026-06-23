@@ -11,6 +11,7 @@ Guia de contexto para agentes de IA que trabajan en **BetYouWin**.
 - Para operaciones en GitHub (ramas remotas, PRs, archivos en remoto), prefiere **GitHub MCP** cuando este disponible; usa git local para clonar, checkout y trabajo en working tree.
 - No commitees secretos (`.env`, tokens, credenciales).
 - Solo crea commits o PRs cuando el usuario lo pida explicitamente.
+- Para cada issue BET, trabaja en una rama creada desde `develop` con el formato `features/BET-{number}.{lineartitle}` (ver seccion Git y ramas).
 
 ## Repository Overview
 
@@ -99,18 +100,47 @@ Requisitos: Node.js >= 18, MySQL 8.4, base `betyouwin` creada con `utf8mb4`.
 
 ### Git y ramas
 
-Convencion de ramas de feature (alineada con Linear):
+Toda feature asociada a un issue **BET** debe desarrollarse en una rama creada desde `develop`.
+
+#### Formato obligatorio
 
 ```
-joseeyler/bet-<numero>-<descripcion-corta>
+features/BET-{number}.{lineartitle}
 ```
 
-Ejemplos existentes:
+| Parte | Regla |
+|-------|-------|
+| Prefijo | Siempre `features/` |
+| `{number}` | Numero del issue Linear sin ceros extra (ej. `6`, `7`, `12`) |
+| `{lineartitle}` | Titulo del issue en Linear, sin espacios, en **camelCase** (lowerCamelCase) |
 
-- `joseeyler/bet-6-generar-script-de-base-de-datos`
-- `joseeyler/bet-7-crear-tablas-iniciales` (implementado en rama de BET-6)
+#### Como obtener `{lineartitle}` desde Linear
 
-Flujo esperado: feature branch → PR hacia `develop`.
+1. Tomar el **titulo** del issue (ej. `Generar script de base de datos`).
+2. Normalizar a ASCII: quitar acentos y ene (ej. `direccion`, no `dirección`).
+3. Separar en palabras, ignorar signos de puntuacion.
+4. Primera palabra en minuscula; cada palabra siguiente con inicial mayuscula.
+5. Unir sin espacios.
+
+Ejemplos:
+
+| Issue | Titulo Linear | Rama |
+|-------|---------------|------|
+| BET-5 | Crear backend | `features/BET-5.crearBackend` |
+| BET-6 | Generar script de base de datos | `features/BET-6.generarScriptDeBaseDeDatos` |
+| BET-7 | Crear tablas iniciales | `features/BET-7.crearTablasIniciales` |
+
+#### Flujo
+
+```bash
+git checkout develop
+git pull origin develop
+git checkout -b features/BET-7.crearTablasIniciales
+# ... trabajo ...
+# PR hacia develop
+```
+
+> **Nota:** existen ramas historicas con convencion anterior (`joseeyler/bet-6-...`). No usarlas como referencia; la convencion vigente es `features/BET-{number}.{lineartitle}`.
 
 ### Issues en Linear
 
@@ -166,8 +196,8 @@ DB_HOST, DB_PORT, DB_USER, DB_PASSWORD
 
 ## Linear Issues (referencia)
 
-| Issue | Titulo | Estado |
-|-------|--------|--------|
-| BET-5 | Crear backend | In Progress |
-| BET-6 | Generar script de base de datos | Done |
-| BET-7 | Crear tablas iniciales | Done |
+| Issue | Titulo | Rama esperada | Estado |
+|-------|--------|---------------|--------|
+| BET-5 | Crear backend | `features/BET-5.crearBackend` | In Progress |
+| BET-6 | Generar script de base de datos | `features/BET-6.generarScriptDeBaseDeDatos` | Done |
+| BET-7 | Crear tablas iniciales | `features/BET-7.crearTablasIniciales` | Done |
