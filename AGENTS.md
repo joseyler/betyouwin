@@ -29,7 +29,7 @@ Guia de contexto para agentes de IA que trabajan en **BetYouWin**.
 | Componente | Estado |
 |------------|--------|
 | `byw-db/` | Implementado (BET-6, BET-7) |
-| Backend (BET-5) | Pendiente — aun no hay carpeta en el repo |
+| Backend (BET-5) | En progreso — `byw-api/` scaffolding (BET-8) |
 | Frontend | Pendiente — no iniciado |
 
 ## Architecture and Major Components
@@ -38,6 +38,7 @@ Guia de contexto para agentes de IA que trabajan en **BetYouWin**.
 betyouwin/
 ├── AGENTS.md
 ├── README.md
+├── byw-api/                # Backend NestJS + TypeORM (BET-5)
 └── byw-db/                 # Migraciones MySQL (db-migrate)
     ├── migrations/
     │   ├── data/             # Seeds y datos estaticos de migraciones
