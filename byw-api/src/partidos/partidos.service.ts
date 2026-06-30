@@ -5,9 +5,10 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { EstadoPartido, FasePartido } from '../common/enums';
+import { Not, Repository } from 'typeorm';
+import { EstadoPartido, FasePartido, EstadoApuesta } from '../common/enums';
 import { Equipo } from '../entities/equipo.entity';
+import { Apuesta } from '../entities/apuesta.entity';
 import { Partido } from '../entities/partido.entity';
 import { ActualizarPartidoDto } from './dto/actualizar-partido.dto';
 import { ListarPartidosQueryDto } from './dto/listar-partidos-query.dto';
@@ -47,6 +48,8 @@ export class PartidosService {
     private readonly partidosRepository: Repository<Partido>,
     @InjectRepository(Equipo)
     private readonly equiposRepository: Repository<Equipo>,
+    @InjectRepository(Apuesta)
+    private readonly apuestasRepository: Repository<Apuesta>,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -95,6 +98,8 @@ export class PartidosService {
     if (!partido) {
       throw new NotFoundException('partido no encontrado');
     }
+
+    await this.validarModificacionConApuestasLiquidadas(partidoId, dto);
 
     const estadoAnterior = partido.estado;
 
@@ -181,6 +186,35 @@ export class PartidosService {
     }
 
     return this.toResponse(recargado ?? guardado);
+  }
+
+  private async validarModificacionConApuestasLiquidadas(
+    partidoId: string,
+    dto: ActualizarPartidoDto,
+  ): Promise<void> {
+    const modificaPartido =
+      dto.equipoLocalId !== undefined ||
+      dto.equipoVisitanteId !== undefined ||
+      dto.golesLocal !== undefined ||
+      dto.golesVisitante !== undefined ||
+      dto.estado !== undefined;
+
+    if (!modificaPartido) {
+      return;
+    }
+
+    const tieneApuestasLiquidadas = await this.apuestasRepository.exists({
+      where: {
+        partidoId,
+        estado: Not(EstadoApuesta.PENDIENTE),
+      },
+    });
+
+    if (tieneApuestasLiquidadas) {
+      throw new BadRequestException(
+        'partido con apuestas liquidadas no admite modificaciones',
+      );
+    }
   }
 
   private async validarEquipo(equipoId: string): Promise<void> {
