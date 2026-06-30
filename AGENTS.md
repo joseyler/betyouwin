@@ -29,7 +29,7 @@ Guia de contexto para agentes de IA que trabajan en **BetYouWin**.
 | Componente | Estado |
 |------------|--------|
 | `byw-db/` | Implementado (BET-6, BET-7) |
-| Backend (BET-5) | En progreso — `byw-api/` scaffolding (BET-8) |
+| `byw-api/` | En progreso (BET-5) — modulos core implementados (BET-8 a BET-13); pendiente suite e2e integral (BET-14) |
 | Frontend | Pendiente — no iniciado |
 
 ## Architecture and Major Components
@@ -39,9 +39,19 @@ betyouwin/
 ├── AGENTS.md
 ├── README.md
 ├── byw-api/                # Backend NestJS + TypeORM (BET-5)
+│   ├── src/
+│   │   ├── auth/           # JWT, guards, @Public(), @Roles()
+│   │   ├── usuarios/       # registro, login, saldo
+│   │   ├── transacciones/  # ingreso, retiro, ledger
+│   │   ├── partidos/       # listado publico, admin PATCH
+│   │   ├── apuestas/       # CRUD apuestas del usuario
+│   │   ├── liquidacion/    # premios al finalizar/cancelar partido
+│   │   ├── entities/       # entidades TypeORM (5 tablas)
+│   │   └── common/enums.ts
+│   └── test/               # e2e por modulo
 └── byw-db/                 # Migraciones MySQL (db-migrate)
     ├── migrations/
-    │   ├── data/             # Seeds y datos estaticos de migraciones
+    │   ├── data/           # Seeds y datos estaticos de migraciones
     │   └── *.js
     ├── database.json
     ├── package.json
@@ -67,6 +77,32 @@ Reglas de negocio relevantes para el backend:
 - **Tope de apuesta:** el monto no puede superar el saldo disponible (validar en aplicacion).
 - **Una apuesta por partido:** restriccion `UNIQUE (usuario_id, partido_id)`.
 - **Partidos eliminatorios:** pueden tener `equipo_local_id` / `equipo_visitante_id` en `NULL` hasta definir enfrentamiento; usan `descripcion`.
+- **Partido iniciado (apuestas):** `estado <> 'programado'` **o** `fecha_hora <= ahora` bloquea crear/editar/eliminar apuestas.
+- **Liquidacion (MVP):** al finalizar partido, apuestas `pendiente` se evaluan; coeficientes: `ganador` 2x, `empate` 3x, `resultado_exacto` 6x. Ganadoras: `estado=ganada`, `premio_pesos`, transaccion `ganancia`. Perdedoras: `estado=perdida`. Partido `cancelado`: apuestas `pendiente` pasan a `cancelada` sin premio. Solo se procesan apuestas `pendiente` (idempotente).
+- **Estados de apuesta:** `pendiente`, `ganada`, `perdida`, `cancelada`.
+
+### API REST (`byw-api/`)
+
+Auth global con JWT (`JwtAuthGuard`); rutas marcadas `@Public()` no requieren token. Admin: email en `ADMIN_EMAIL` recibe `role=admin` en el token.
+
+| Metodo | Ruta | Auth | Descripcion |
+|--------|------|------|-------------|
+| GET | `/health` | publico | Estado app y DB |
+| POST | `/usuarios/registro` | publico | Alta de usuario |
+| POST | `/usuarios/login` | publico | Devuelve JWT |
+| GET | `/usuarios/saldo` | usuario | Saldo calculado desde transacciones |
+| POST | `/transacciones/ingreso` | usuario | Credito |
+| POST | `/transacciones/retiro` | usuario | Debito (valida saldo) |
+| GET | `/partidos` | publico | Listado con filtros (`grupo`, `fecha`, `equipo`, `fase`) |
+| PATCH | `/partidos/:id` | admin | Asignar equipos (eliminatorias), goles, estado |
+| GET | `/apuestas` | usuario | Apuestas del usuario autenticado |
+| POST | `/apuestas` | usuario | Crear apuesta (debita transaccion `apuesta`) |
+| PATCH | `/apuestas/:id` | usuario | Actualizar apuesta pendiente |
+| DELETE | `/apuestas/:id` | usuario | Eliminar apuesta pendiente |
+| GET | `/auth/me` | usuario | Perfil del token |
+| GET | `/auth/admin` | admin | Ruta de prueba admin |
+
+Liquidacion: no expone endpoints propios; se dispara al `PATCH` de partido cuando el estado pasa a `finalizado` o `cancelado` (eventos `partido.finalizado` / `partido.cancelado`).
 
 ### Calculo de saldo (referencia)
 
@@ -98,6 +134,28 @@ npm run db:status      # dry-run
 ```
 
 Requisitos: Node.js >= 18, MySQL 8.4, base `betyouwin` creada con `utf8mb4`.
+
+### Backend (`byw-api/`)
+
+```bash
+cd byw-api
+npm install
+cp .env.example .env   # DB + JWT_SECRET + ADMIN_EMAIL
+npm run start:dev      # http://localhost:3000
+```
+
+Scripts utiles:
+
+| Comando | Uso |
+|---------|-----|
+| `npm run build` | Compilar |
+| `npm run lint` | ESLint |
+| `npm run test` | Unit tests |
+| `npm run test:e2e` | Suite e2e completa |
+| `npm run test:e2e -- apuestas` | e2e modulo apuestas |
+| `npm run test:e2e -- liquidacion` | e2e liquidacion de premios |
+
+Detalle de variables y rutas: `byw-api/README.md`.
 
 ### Git y ramas
 
@@ -177,6 +235,9 @@ git checkout -b features/BET-7.crearTablasIniciales
 |-------------|-----|
 | `db-migrate` + `db-migrate-mysql` | Migraciones incrementales |
 | `dotenv` | Variables de entorno en scripts npm |
+| NestJS + TypeORM + mysql2 | Backend `byw-api/` |
+| `@nestjs/jwt`, `passport-jwt` | Autenticacion JWT |
+| `@nestjs/event-emitter` | Eventos de liquidacion de partidos |
 | Linear MCP | Issues, estados, comentarios |
 | GitHub MCP | Repositorio `joseyler/betyouwin`, ramas, PRs, archivos remotos |
 
@@ -186,6 +247,12 @@ Variables de entorno en `byw-db/.env`:
 DB_HOST, DB_PORT, DB_USER, DB_PASSWORD
 ```
 
+Variables de entorno en `byw-api/.env` (ademas de DB):
+
+```
+DB_NAME, PORT, JWT_SECRET, JWT_EXPIRES_IN, ADMIN_EMAIL
+```
+
 ## Common Gotchas
 
 1. **MySQL local:** el usuario suele tener instancia local propia (no Docker en el repo). Verificar credenciales en `.env` antes de correr migraciones.
@@ -193,7 +260,8 @@ DB_HOST, DB_PORT, DB_USER, DB_PASSWORD
 3. **Linear MCP OAuth:** si falla auth, revisar procesos `node` huerfanos en puertos de callback OAuth y limpiar `~/.mcp-auth`.
 4. **Horarios de partidos:** almacenados en hora del este (ET) segun calendario FIFA; documentar si el backend expone otra zona horaria.
 5. **Apuestas en eliminatorias:** validar en backend que los equipos del partido esten definidos antes de permitir apostar.
-6. **README de `byw-db`:** la nota sobre "sin tablas de negocio" quedo desactualizada tras BET-7; el esquema inicial ya incluye tablas y seed del Mundial 2026.
+6. **Tests e2e de apuestas/liquidacion:** si la fase de grupos ya paso (fecha actual >= ultimo partido de grupos), los tests usan eliminatorias futuras con equipos asignados por admin via `PATCH /partidos/:id`.
+7. **README de `byw-db`:** la nota sobre "sin tablas de negocio" quedo desactualizada tras BET-7; el esquema inicial ya incluye tablas y seed del Mundial 2026.
 
 ## Linear Issues (referencia)
 
@@ -202,3 +270,12 @@ DB_HOST, DB_PORT, DB_USER, DB_PASSWORD
 | BET-5 | Crear backend | `features/BET-5.crearBackend` | In Progress |
 | BET-6 | Generar script de base de datos | `features/BET-6.generarScriptDeBaseDeDatos` | Done |
 | BET-7 | Crear tablas iniciales | `features/BET-7.crearTablasIniciales` | Done |
+| BET-8 | Scaffolding byw-api y entidades TypeORM | `features/BET-5.crearBackend` | Done |
+| BET-9 | Autenticacion JWT y autorizacion admin | `features/BET-5.crearBackend` | Done |
+| BET-10 | Modulo usuarios, saldo y transacciones | `features/BET-5.crearBackend` | Done |
+| BET-11 | Modulo partidos (consulta y administracion) | `features/BET-5.crearBackend` | Done |
+| BET-12 | Modulo apuestas (CRUD y reglas de negocio) | `features/BET-5.crearBackend` | Done |
+| BET-13 | Liquidacion de premios al finalizar partido | `features/BET-5.crearBackend` | Done |
+| BET-14 | Suite e2e integral | `features/BET-5.crearBackend` | Pendiente |
+
+> Los sub-issues de BET-5 comparten la rama del padre (`features/BET-5.crearBackend`), no la rama sugerida por Linear en cada hijo.

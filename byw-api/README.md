@@ -23,8 +23,31 @@ Variables (compatibles con `byw-db/`):
 | `DB_PASSWORD` | Contrasena |
 | `DB_NAME` | Base de datos (`betyouwin`) |
 | `PORT` | Puerto HTTP (default 3000) |
+| `JWT_SECRET` | Secreto para firmar tokens JWT |
+| `JWT_EXPIRES_IN` | Expiracion del token (ej. `1d`) |
+| `ADMIN_EMAIL` | Email que recibe `role=admin` al emitir token |
 
-## Migraciones
+## Autenticacion JWT
+
+- Header: `Authorization: Bearer <token>`
+- Claim `role`: `user` | `admin`
+- Usuario admin: el email configurado en `ADMIN_EMAIL` (default `admin@betyouwin.com`). En BET-10 el login usara `AuthService.resolveRole()`; opcionalmente se podra agregar flag en DB.
+- Guards exportados: `JwtAuthGuard`, `RolesGuard`
+- Decoradores: `@Roles(UserRole.ADMIN)`, `@Public()` (rutas sin auth)
+- Rutas de prueba (sin login): `GET /auth/me`, `GET /auth/admin`
+
+## Partidos
+
+- `GET /partidos` es **publico** (no requiere JWT).
+- Filtros opcionales: `grupo`, `fecha` (YYYY-MM-DD), `equipo` (id), `fase`.
+- Orden por defecto: `fecha_hora` ASC (hora del este, tal como en DB).
+- `PATCH /partidos/:id` requiere JWT con `role=admin`.
+
+```bash
+# Ejemplo manual (token emitido por AuthService en tests o futuro login)
+curl -H "Authorization: Bearer <token>" http://localhost:3000/auth/me
+```
+
 
 Aplicar esquema desde el modulo de base de datos:
 
