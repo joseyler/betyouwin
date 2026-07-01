@@ -1,0 +1,19 @@
+{
+  "name": "byw-qa",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "playwright test --project chromium",
+    "test:ui": "playwright test --headed",
+    "test:smoke": "playwright test --grep smoke",
+    "test:registro": "playwright test --grep registro",
+    "test:registro-ui": "playwright test --grep registro --headed",
+    "test:google": "playwright test --project google --grep @google"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.1",
+    "@types/node": "^20",
+    "dotenv": "^16.4.7",
+    "typescript": "^5"
+  }
+}

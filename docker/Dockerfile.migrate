@@ -1,0 +1,12 @@
+FROM node:20-alpine
+
+WORKDIR /app/byw-db
+
+COPY byw-db/package.json byw-db/package-lock.json ./
+RUN npm install
+
+COPY byw-db/ ./
+
+ENV NODE_ENV=development
+
+CMD ["npm", "run", "db:up"]
