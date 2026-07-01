@@ -1,0 +1,11 @@
+FROM mcr.microsoft.com/playwright:v1.51.1-jammy
+
+WORKDIR /app/byw-qa
+
+COPY byw-qa/package.json byw-qa/package-lock.json ./
+RUN npm install
+
+COPY byw-qa/ ./
+
+# Chromium ya incluido en la imagen base de Playwright
+CMD ["npm", "test"]

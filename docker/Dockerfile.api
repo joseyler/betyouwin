@@ -1,0 +1,23 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app/byw-api
+
+COPY byw-api/package.json byw-api/package-lock.json ./
+RUN npm install
+
+COPY byw-api/ ./
+RUN npm run build
+
+FROM node:20-alpine
+
+WORKDIR /app/byw-api
+
+COPY byw-api/package.json byw-api/package-lock.json ./
+RUN npm install --omit=dev
+
+COPY --from=builder /app/byw-api/dist ./dist
+
+ENV NODE_ENV=production
+EXPOSE 3000
+
+CMD ["npm", "run", "start:prod"]
